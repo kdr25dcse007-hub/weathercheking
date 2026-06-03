@@ -8,8 +8,8 @@
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   :root{
-    --glass:rgba(255,255,255,0.15);
-    --glass-border:rgba(255,255,255,0.25);
+    --glass:rgba(255,255,255,0.22);
+    --glass-border:rgba(255,255,255,0.35);
     --glass-dark:rgba(0,0,0,0.15);
     --text-white:rgba(255,255,255,0.95);
     --text-muted:rgba(255,255,255,0.65);
@@ -33,12 +33,12 @@
   .sky-foggy{background:linear-gradient(180deg,#9ba5ad 0%,#adb5bb 40%,#bfc5ca 70%,#cfd5d8 100%)}
 
   /* Animated overlays */
-  .overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1}
   .stars{position:absolute;inset:0}
   .star{position:absolute;background:white;border-radius:50%;animation:twinkle var(--d,2s) ease-in-out infinite}
   @keyframes twinkle{0%,100%{opacity:var(--min,0.3);transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
 
-  .cloud{position:absolute;border-radius:50px;animation:float var(--spd,30s) linear infinite;opacity:var(--op,0.7)}
+  .cloud{position:absolute;border-radius:50px;animation:float var(--spd,30s) linear infinite;opacity:var(--op,0.7);pointer-events:none}
   @keyframes float{from{transform:translateX(-250px)}to{transform:translateX(110vw)}}
 
   .rain-drop{position:absolute;width:1.5px;background:rgba(174,214,255,0.6);border-radius:2px;animation:rain var(--spd,0.8s) linear infinite;top:-80px}
@@ -91,7 +91,7 @@
   .weather-main{display:flex;align-items:center;justify-content:space-between}
   .temp-huge{font-size:80px;font-weight:300;line-height:1;letter-spacing:-3px}
   .temp-unit-sup{font-size:32px;font-weight:400;vertical-align:super;opacity:0.7}
-  .weather-icon-big{font-size:72px;line-height:1;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.2))}
+  .weather-icon-big{width:90px;height:90px;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.2))}
   .condition-text{font-size:18px;font-weight:500;margin-top:8px;opacity:0.9}
   .feels-like{font-size:13px;color:var(--text-muted);margin-top:4px}
 
@@ -123,7 +123,7 @@
   .forecast-day{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--glass);border:1px solid var(--glass-border);border-radius:12px;transition:all .2s}
   .forecast-day:hover{background:rgba(255,255,255,0.2)}
   .fc-day{font-size:14px;font-weight:500;width:44px}
-  .fc-icon{font-size:22px;text-align:center;width:32px}
+  .fc-icon{width:36px;height:36px;text-align:center}
   .fc-desc{font-size:12px;color:var(--text-muted);flex:1;padding:0 12px}
   .fc-temps{display:flex;gap:10px;font-size:14px;font-weight:600}
   .fc-low{color:var(--text-muted);font-weight:400}
@@ -140,11 +140,24 @@
   .gps-btn{background:var(--glass);border:1px solid var(--glass-border);border-radius:12px;padding:10px 16px;color:white;font-size:14px;font-family:'Outfit',sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;width:100%;justify-content:center;margin-bottom:16px}
   .gps-btn:hover{background:rgba(255,255,255,0.25)}
 
-  /* Snow sky text override */
+  /* Snow theme — targeted selectors, no wildcard */
   .sky-snow .glass,.sky-snow .glass-sm,.sky-snow .glass-mini{background:rgba(0,20,60,0.12);border-color:rgba(100,150,200,0.3)}
-  .sky-snow *{color:#0a1a2e!important;--text-muted:rgba(10,26,46,0.6)!important}
+  .sky-snow .city-name,.sky-snow .condition-text,.sky-snow .temp-huge,
+  .sky-snow .stat-val,.sky-snow .sun-time,.sky-snow .forecast-title,
+  .sky-snow .fc-day,.sky-snow .fc-temps,.sky-snow .logo,
+  .sky-snow .unit-btn.active,.sky-snow .location-row{color:#0a1a2e!important}
+  .sky-snow .datetime,.sky-snow .feels-like,.sky-snow .stat-label,
+  .sky-snow .sun-label,.sky-snow .fc-desc,.sky-snow .fc-low,
+  .sky-snow .aqi-cat,.sky-snow .loading{color:rgba(10,26,46,0.6)!important}
+  /* Haze theme — targeted selectors, no wildcard */
   .sky-haze .glass,.sky-haze .glass-sm,.sky-haze .glass-mini{background:rgba(60,30,0,0.12);border-color:rgba(180,140,100,0.3)}
-  .sky-haze *{color:#2a1e10!important;--text-muted:rgba(42,30,16,0.6)!important}
+  .sky-haze .city-name,.sky-haze .condition-text,.sky-haze .temp-huge,
+  .sky-haze .stat-val,.sky-haze .sun-time,.sky-haze .forecast-title,
+  .sky-haze .fc-day,.sky-haze .fc-temps,.sky-haze .logo,
+  .sky-haze .unit-btn.active,.sky-haze .location-row{color:#2a1e10!important}
+  .sky-haze .datetime,.sky-haze .feels-like,.sky-haze .stat-label,
+  .sky-haze .sun-label,.sky-haze .fc-desc,.sky-haze .fc-low,
+  .sky-haze .aqi-cat,.sky-haze .loading{color:rgba(42,30,16,0.6)!important}
 
   .divider{height:1px;background:var(--glass-border);margin:14px 0}
 
@@ -159,20 +172,20 @@
     <div class="header">
       <div class="logo">Weather<span>Now</span></div>
       <div class="unit-toggle">
-        <button class="unit-btn active" id="btnC" onclick="setUnit('C')">°C</button>
-        <button class="unit-btn" id="btnF" onclick="setUnit('F')">°F</button>
+        <button class="unit-btn active" id="btnC" onclick="setUnit('C')" aria-label="Switch to Celsius">°C</button>
+        <button class="unit-btn" id="btnF" onclick="setUnit('F')" aria-label="Switch to Fahrenheit">°F</button>
       </div>
     </div>
 
     <div class="search-wrap">
-      <input class="search-input" id="searchInput" type="text" placeholder="City name or PIN code..." onkeydown="if(event.key==='Enter')doSearch()">
-      <button class="search-btn" onclick="doSearch()">🔍</button>
+      <input class="search-input" id="searchInput" type="text" placeholder="City name or PIN code..." inputmode="search" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Search city or PIN code" onkeydown="if(event.key==='Enter')doSearch()">
+      <button class="search-btn" onclick="doSearch()" aria-label="Search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
     </div>
     <div style="font-size:11px;color:rgba(255,255,255,0.45);text-align:center;margin-top:-12px;margin-bottom:14px;letter-spacing:0.3px">Try: Hyderabad &middot; Mumbai &middot; 500001 &middot; 110001</div>
 
     <div class="history-wrap" id="historyWrap"></div>
 
-    <button class="gps-btn" onclick="getGPS()">📍 Use my current location</button>
+    <button class="gps-btn" onclick="getGPS()" aria-label="Use my current location">📍 Use my current location</button>
 
     <div id="errorBox" style="display:none"></div>
     <div id="content"></div>
@@ -185,24 +198,26 @@ let unit = 'C';
 let searchHistory = (()=>{
   try{
     const raw=JSON.parse(localStorage.getItem('wx_history')||'[]');
-    // Migrate old plain-string entries and drop broken label-only entries like "Hyderabad (500003)"
-    return raw.map(e=>{
-      if(typeof e==='object'&&e.label&&e.query) return e;
-      const s=String(e);
-      // Drop old PIN label entries that can't be re-searched
-      if(/^.*\(\d{6}\)$/.test(s)) return null;
-      return {label:s, query:s};
+    if(!Array.isArray(raw)) throw new Error('bad');
+    const cleaned=raw.map(e=>{
+      if(typeof e==='object'&&e.label&&e.query&&
+         typeof e.label==='string'&&typeof e.query==='string') return e;
+      // Drop any legacy or malformed entries
+      return null;
     }).filter(Boolean);
-  }catch(e){return [];}
+    // Save cleaned version back immediately
+    localStorage.setItem('wx_history',JSON.stringify(cleaned));
+    return cleaned;
+  }catch(e){
+    localStorage.removeItem('wx_history');
+    return [];
+  }
 })();
 let currentData = null;
-let _reqId = 0; // incremented each search; stale responses are ignored
+let _reqId = 0;
+let _abortCtrl = null; // AbortController for cancelling in-flight requests
 
-const WEATHER_ICONS = {
-  '01d':'☀️','01n':'🌙','02d':'⛅','02n':'🌥️','03d':'☁️','03n':'☁️',
-  '04d':'☁️','04n':'☁️','09d':'🌧️','09n':'🌧️','10d':'🌦️','10n':'🌧️',
-  '11d':'⛈️','11n':'⛈️','13d':'❄️','13n':'❄️','50d':'🌫️','50n':'🌫️'
-};
+function wxIconUrl(icon){return `https://openweathermap.org/img/wn/${icon}@2x.png`;}
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
@@ -308,17 +323,61 @@ async function searchCity(query){
 
 async function searchLocation(query){
   const reqId=++_reqId;
+  // Cancel any previous in-flight requests
+  if(_abortCtrl) _abortCtrl.abort();
+  _abortCtrl = new AbortController();
+  const sig=_abortCtrl.signal;
   showLoading();
   try{
     let lat,lon;
+    // Internal GPS call from init: "lat,lon_gps"
+    if(query.endsWith('_gps')){
+      const parts=query.replace('_gps','').split(',');
+      lat=parseFloat(parts[0]); lon=parseFloat(parts[1]);
+      const [wx,fcast]=await Promise.all([
+        fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json()),
+        fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json())
+      ]);
+      if(wx.cod!==200){showWelcome();return}
+      let aqi=null;
+      try{const a=await fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json());aqi=a.list?.[0]?.main?.aqi}catch(e){}
+      if(reqId!==_reqId) return;
+      renderWeather(wx,fcast,aqi);
+      document.getElementById('errorBox').style.display='none';
+      return;
+    }
     const isPIN=/^\d{6}$/.test(query.trim());
 
     if(isPIN){
-      const zipRes=await fetch(
-        `https://api.openweathermap.org/geo/1.0/zip?zip=${query.trim()},IN&appid=${API_KEY}`
-      ).then(r=>r.json());
-      if(zipRes.cod==='404'||zipRes.cod===404||!zipRes.lat){showError(`PIN code ${query} not found. Try a city name instead.`);return}
-      lat=zipRes.lat; lon=zipRes.lon;
+      // Step 1: Use India Post API for accurate PIN → city/district name
+      let pinCity=null, pinState=null;
+      try{
+        const pinRes=await fetch(`https://api.postalpincode.in/pincode/${query.trim()}`).then(r=>r.json());
+        if(pinRes?.[0]?.Status==='Success'&&pinRes[0].PostOffice?.length){
+          const po=pinRes[0].PostOffice[0];
+          // Prefer District over Name for better geocoding accuracy
+          pinCity=po.District||po.Name;
+          pinState=po.State;
+        }
+      }catch(e){}
+
+      if(pinCity){
+        // Step 2: Geocode the confirmed city+state name
+        const cityQuery=`${pinCity}, ${pinState}, IN`;
+        const geoRes=await fetch(
+          `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(cityQuery)}&limit=1&appid=${API_KEY}`
+        ).then(r=>r.json());
+        if(geoRes.length){lat=geoRes[0].lat;lon=geoRes[0].lon;}
+      }
+
+      // Fallback: OpenWeather zip API
+      if(lat==null){
+        const zipRes=await fetch(
+          `https://api.openweathermap.org/geo/1.0/zip?zip=${query.trim()},IN&appid=${API_KEY}`
+        ).then(r=>r.json());
+        if(zipRes.cod==='404'||zipRes.cod===404||!zipRes.lat){showError(`PIN code ${query} not found. Try a city name instead.`);return}
+        lat=zipRes.lat; lon=zipRes.lon;
+      }
     } else {
       const geoRes=await fetch(
         `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)},IN&limit=1&appid=${API_KEY}`
@@ -335,25 +394,29 @@ async function searchLocation(query){
     }
 
     const [wx,fcast]=await Promise.all([
-      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json()),
-      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json())
+      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}`,{signal:sig}).then(r=>r.json()),
+      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}`,{signal:sig}).then(r=>r.json())
     ]);
     if(wx.cod!==200){showError(wx.message||'Location not found');return}
 
     let aqi=null;
     try{
-      const aqiRes=await fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json());
+      const aqiRes=await fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}`,{signal:sig}).then(r=>r.json());
       const rawAqi=aqiRes.list?.[0]?.main?.aqi;
       aqi=(rawAqi!=null&&rawAqi>=1&&rawAqi<=5)?rawAqi:null;
     }catch(e){}
 
-    const histLabel=isPIN?`${wx.name} (${query.trim()})`:wx.name+', '+(wx.sys?.country||'');
-    const histQuery=isPIN?query.trim():wx.name+', '+(wx.sys?.country||'');
+    // History: for PIN searches store the PIN as both label and query (never mix wx.name with PIN)
+    const histLabel=isPIN?query.trim():wx.name+', '+(wx.sys?.country||'');
+    const histQuery=histLabel;
     addHistory({label:histLabel, query:histQuery});
     if(reqId!==_reqId) return; // stale response, a newer search is in progress
     renderWeather(wx,fcast,aqi);
     document.getElementById('errorBox').style.display='none';
-  }catch(e){if(reqId===_reqId) showError('Failed to fetch weather. Check your connection.');}
+  }catch(e){
+    if(e.name==='AbortError') return; // intentionally cancelled
+    if(reqId===_reqId) showError('Failed to fetch weather. Check your connection.');
+  }
 }
 
 async function getGPS(){
@@ -405,16 +468,36 @@ function showError(msg){
   eb.innerHTML=`<div class="error-msg">❌ ${esc(msg)}</div>`;
 }
 
-function getDailyForecast(list){
+function getDailyForecast(list,tz){
+  // Group by local calendar date using the location's UTC offset
   const days={};
   list.forEach(item=>{
-    const d=new Date(item.dt*1000);
-    // Use UTC date for grouping to stay consistent with getUTCDay() used in rendering
-    const key=`${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
-    if(!days[key]) days[key]={icon:item.weather[0].icon,desc:item.weather[0].description,temps:[],id:item.weather[0].id,dt:item.dt};
-    days[key].temps.push(item.main.temp);
+    const localMs=(item.dt+(tz||0))*1000;
+    const d=new Date(localMs);
+    const key=`${d.getUTCFullYear()}-${String(d.getUTCMonth()).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+    if(!days[key]) days[key]=[];
+    days[key].push(item);
   });
-  return Object.values(days).slice(1,6);
+  const todayKey=Object.keys(days)[0];
+  return Object.entries(days)
+    .filter(([k])=>k!==todayKey)   // skip today
+    .slice(0,5)
+    .map(([,slots])=>{
+      // Pick slot whose local hour is closest to 12:00 (noon)
+      const best=slots.reduce((a,b)=>{
+        const aH=new Date((a.dt+(tz||0))*1000).getUTCHours();
+        const bH=new Date((b.dt+(tz||0))*1000).getUTCHours();
+        return Math.abs(aH-12)<Math.abs(bH-12)?a:b;
+      });
+      return {
+        dt:best.dt,
+        icon:best.weather[0].icon,
+        desc:best.weather[0].description,
+        id:best.weather[0].id,
+        // Hi/lo from ALL slots that day for accuracy
+        temps:slots.map(s=>s.main.temp)
+      };
+    });
 }
 
 function renderWeather(wx,fcast,aqi){
@@ -424,10 +507,10 @@ function renderWeather(wx,fcast,aqi){
   app.className=skyClass;
   buildOverlay(wx.weather[0].id,wx.weather[0].icon);
 
-  const icon=WEATHER_ICONS[wx.weather[0].icon]||'🌡️';
+  const iconCode=wx.weather[0].icon;
   const tz=wx.timezone;
   if(!fcast||!fcast.list){showError('Forecast data unavailable. Try again.');return}
-  const daily=getDailyForecast(fcast.list);
+  const daily=getDailyForecast(fcast.list,tz);
 
   const aqiPct=aqi!=null?Math.min(98,Math.max(2,(aqi-1)/4*100)):null;
 
@@ -445,15 +528,15 @@ function renderWeather(wx,fcast,aqi){
         <div class="condition-text">${esc(wx.weather[0].description.charAt(0).toUpperCase()+wx.weather[0].description.slice(1))}</div>
         <div class="feels-like">Feels like ${tempStr(wx.main.feels_like)}</div>
       </div>
-      <div class="weather-icon-big">${icon}</div>
+      <img class="weather-icon-big" src="${wxIconUrl(iconCode)}" alt="${esc(wx.weather[0].description)}">
     </div>
   </div>
 
   <div class="stats-grid animate-in" style="animation-delay:.1s">
-    <div class="glass-sm stat-item"><div class="stat-icon">💧</div><div><div class="stat-label">Humidity</div><div class="stat-val">${wx.main.humidity}%</div></div></div>
-    <div class="glass-sm stat-item"><div class="stat-icon">🌬️</div><div><div class="stat-label">Wind</div><div class="stat-val">${Math.round(wx.wind.speed*3.6)} km/h</div></div></div>
-    <div class="glass-sm stat-item"><div class="stat-icon">👁️</div><div><div class="stat-label">Visibility</div><div class="stat-val">${wx.visibility?(wx.visibility/1000).toFixed(1)+' km':'N/A'}</div></div></div>
-    <div class="glass-sm stat-item"><div class="stat-icon">🌡️</div><div><div class="stat-label">Pressure</div><div class="stat-val">${wx.main.pressure} hPa</div></div></div>
+    <div class="glass-sm stat-item"><div class="stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6 9 4 13 4 16a8 8 0 0 0 16 0c0-3-2-7-8-14z"/></svg></div><div><div class="stat-label">Humidity</div><div class="stat-val">${wx.main.humidity}%</div></div></div>
+    <div class="glass-sm stat-item"><div class="stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg></div><div><div class="stat-label">Wind</div><div class="stat-val">${Math.round(wx.wind.speed*3.6)} km/h</div></div></div>
+    <div class="glass-sm stat-item"><div class="stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div><div class="stat-label">Visibility</div><div class="stat-val">${wx.visibility?(wx.visibility/1000).toFixed(1)+' km':'N/A'}</div></div></div>
+    <div class="glass-sm stat-item"><div class="stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div><div><div class="stat-label">Pressure</div><div class="stat-val">${wx.main.pressure} hPa</div></div></div>
   </div>
 
   <div class="glass-sm animate-in" style="margin-bottom:16px;animation-delay:.15s">
@@ -484,11 +567,11 @@ function renderWeather(wx,fcast,aqi){
         const dayName=DAYS[date.getUTCDay()];
         const max=tempVal(Math.max(...d.temps));
         const min=tempVal(Math.min(...d.temps));
-        const fcIcon=WEATHER_ICONS[d.icon]||'🌡️';
+        const fcIcon=d.icon;
         const desc=d.desc.charAt(0).toUpperCase()+d.desc.slice(1);
         return `<div class="forecast-day">
           <div class="fc-day">${dayName}</div>
-          <div class="fc-icon">${fcIcon}</div>
+          <img class="fc-icon" src="${wxIconUrl(fcIcon)}" alt="${esc(desc)}" style="object-fit:contain">
           <div class="fc-desc">${desc}</div>
           <div class="fc-temps"><span>${max}°</span><span class="fc-low">${min}°</span></div>
         </div>`;
@@ -502,7 +585,34 @@ function renderWeather(wx,fcast,aqi){
 
 // Init
 renderHistory();
-searchLocation('Hyderabad');
+(function init(){
+  // 1. Resume last search
+  if(searchHistory.length){
+    const last=searchHistory[0];
+    searchLocation(typeof last==='object'?last.query:last);
+    return;
+  }
+  // 2. Try GPS silently
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      pos=>{ searchLocation(`${pos.coords.latitude},${pos.coords.longitude}_gps`); },
+      ()=>showWelcome(),
+      {timeout:5000,maximumAge:300000}
+    );
+    return;
+  }
+  // 3. Welcome state
+  showWelcome();
+})();
+
+function showWelcome(){
+  document.getElementById('content').innerHTML=`
+    <div class="glass animate-in" style="text-align:center;padding:32px 20px">
+      <div style="font-size:48px;margin-bottom:12px">🌤️</div>
+      <div style="font-size:18px;font-weight:600;margin-bottom:6px">WeatherNow</div>
+      <div style="font-size:13px;color:var(--text-muted)">Search a city or PIN code above, or use your current location.</div>
+    </div>`;
+}
 </script>
 </body>
 </html>
