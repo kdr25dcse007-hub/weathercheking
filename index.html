@@ -143,10 +143,8 @@
   /* Snow sky text override */
   .sky-snow .glass,.sky-snow .glass-sm,.sky-snow .glass-mini{background:rgba(0,20,60,0.12);border-color:rgba(100,150,200,0.3)}
   .sky-snow *{color:#0a1a2e!important;--text-muted:rgba(10,26,46,0.6)!important}
-  .sky-snow .aqi-track{background:linear-gradient(90deg,#00e400,#ffff00,#ff7e00,#ff0000,#8f3f97,#7e0023)!important}
   .sky-haze .glass,.sky-haze .glass-sm,.sky-haze .glass-mini{background:rgba(60,30,0,0.12);border-color:rgba(180,140,100,0.3)}
   .sky-haze *{color:#2a1e10!important;--text-muted:rgba(42,30,16,0.6)!important}
-  .sky-haze .aqi-track{background:linear-gradient(90deg,#00e400,#ffff00,#ff7e00,#ff0000,#8f3f97,#7e0023)!important}
 
   .divider{height:1px;background:var(--glass-border);margin:14px 0}
 
@@ -184,20 +182,21 @@
 <script>
 const API_KEY = 'a1f48a7f23dcf1893bb2132929bd032f';
 let unit = 'C';
-// Migrate old plain-string history to {label,query} format, drop broken "City (PIN)" entries
-let history = (()=>{
-  const raw=JSON.parse(localStorage.getItem('wx_history')||'[]');
-  return raw.map(e=>{
-    if(typeof e==='object'&&e.label&&e.query) return e;
-    // Drop old broken "CityName (123456)" entries that can't be re-searched
-    if(typeof e==='string'&&/\(\d{6}\)/.test(e)) return null;
-    // GPS entries with emoji prefix — drop (can't re-search)
-    if(typeof e==='string'&&e.startsWith('📍')) return null;
-    if(typeof e==='string') return {label:e,query:e};
-    return null;
-  }).filter(Boolean);
+let searchHistory = (()=>{
+  try{
+    const raw=JSON.parse(localStorage.getItem('wx_history')||'[]');
+    // Migrate old plain-string entries and drop broken label-only entries like "Hyderabad (500003)"
+    return raw.map(e=>{
+      if(typeof e==='object'&&e.label&&e.query) return e;
+      const s=String(e);
+      // Drop old PIN label entries that can't be re-searched
+      if(/^.*\(\d{6}\)$/.test(s)) return null;
+      return {label:s, query:s};
+    }).filter(Boolean);
+  }catch(e){return [];}
 })();
 let currentData = null;
+let _reqId = 0; // incremented each search; stale responses are ignored
 
 const WEATHER_ICONS = {
   '01d':'☀️','01n':'🌙','02d':'⛅','02n':'🌥️','03d':'☁️','03n':'☁️',
@@ -206,6 +205,11 @@ const WEATHER_ICONS = {
 };
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 
 function getSkyClass(weatherId, icon) {
   const isNight = icon && icon.endsWith('n');
@@ -281,23 +285,15 @@ function formatDate(tz){
   return `${days[d.getUTCDay()]}, ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
-function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function renderHistory(){
   const w=document.getElementById('historyWrap');
-  if(!history.length){w.innerHTML='';return}
-  w.innerHTML=history.slice(0,6).map((e,i)=>`<div class="history-chip" onclick="searchFromHistory(${i})">${escHtml(e.label)}</div>`).join('')+
-    `<div class="history-chip" style="opacity:0.5;font-size:11px" onclick="clearHistory()">✕ Clear</div>`;
-}
-
-function clearHistory(){
-  history=[];
-  localStorage.removeItem('wx_history');
-  renderHistory();
-}
-
-function searchFromHistory(idx){
-  const e=history[idx];
-  if(e) searchLocation(e.query);
+  if(!searchHistory.length){w.innerHTML='';return}
+  w.innerHTML=searchHistory.slice(0,6).map(entry=>{
+    const label=typeof entry==='object'?entry.label:entry;
+    const query=typeof entry==='object'?entry.query:entry;
+    const safeQ=query.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="history-chip" onclick="searchLocation('${safeQ}')">${esc(label)}</div>`;
+  }).join('');
 }
 
 async function doSearch(){
@@ -306,7 +302,12 @@ async function doSearch(){
   await searchLocation(q);
 }
 
+async function searchCity(query){
+  await searchLocation(query);
+}
+
 async function searchLocation(query){
+  const reqId=++_reqId;
   showLoading();
   try{
     let lat,lon;
@@ -316,7 +317,7 @@ async function searchLocation(query){
       const zipRes=await fetch(
         `https://api.openweathermap.org/geo/1.0/zip?zip=${query.trim()},IN&appid=${API_KEY}`
       ).then(r=>r.json());
-      if(zipRes.cod==404||!zipRes.lat){showError(`PIN code ${query} not found. Try a city name instead.`);return}
+      if(zipRes.cod==='404'||zipRes.cod===404||!zipRes.lat){showError(`PIN code ${query} not found. Try a city name instead.`);return}
       lat=zipRes.lat; lon=zipRes.lon;
     } else {
       const geoRes=await fetch(
@@ -337,21 +338,22 @@ async function searchLocation(query){
       fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json()),
       fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json())
     ]);
-    if(wx.cod!=200){showError(wx.message||'Location not found');return}
-    if(fcast.cod!='200'){showError('Forecast unavailable for this location.');return}
+    if(wx.cod!==200){showError(wx.message||'Location not found');return}
 
     let aqi=null;
     try{
       const aqiRes=await fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json());
-      aqi=aqiRes.list?.[0]?.main?.aqi;
+      const rawAqi=aqiRes.list?.[0]?.main?.aqi;
+      aqi=(rawAqi!=null&&rawAqi>=1&&rawAqi<=5)?rawAqi:null;
     }catch(e){}
 
-    const histLabel=isPIN?`${wx.name} (${query.trim()})`:wx.name+', '+wx.sys.country;
-    addHistory(histLabel, query.trim());
-    document.getElementById('searchInput').value='';
+    const histLabel=isPIN?`${wx.name} (${query.trim()})`:wx.name+', '+(wx.sys?.country||'');
+    const histQuery=isPIN?query.trim():wx.name+', '+(wx.sys?.country||'');
+    addHistory({label:histLabel, query:histQuery});
+    if(reqId!==_reqId) return; // stale response, a newer search is in progress
     renderWeather(wx,fcast,aqi);
     document.getElementById('errorBox').style.display='none';
-  }catch(e){showError('Failed to fetch weather. Check your connection.')}
+  }catch(e){if(reqId===_reqId) showError('Failed to fetch weather. Check your connection.');}
 }
 
 async function getGPS(){
@@ -364,22 +366,24 @@ async function getGPS(){
         fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json()),
         fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json())
       ]);
-      if(wx.cod!=200){showError(wx.message||'Weather data unavailable for your location.');return}
-      if(fcast.cod!='200'){showError('Forecast unavailable for your location.');return}
       let aqi=null;
       try{const a=await fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json());aqi=a.list?.[0]?.main?.aqi}catch(e){}
-      addHistory('📍 '+(wx.name||'My Location')+', '+wx.sys.country, (wx.name||wx.sys.country)+', '+wx.sys.country);
-      document.getElementById('errorBox').style.display='none';
+      addHistory({label:'📍 '+wx.name+', '+(wx.sys?.country||''), query:wx.name+', '+(wx.sys?.country||'')});
       renderWeather(wx,fcast,aqi);
     }catch(e){showError('Failed to get weather for your location.')}
-  },(err)=>showError(err.code===1?'Location access denied. Please allow location in your browser.':'Unable to get your location. Try searching manually.'));
+  },()=>showError('Location access denied or timed out.'),{timeout:10000,maximumAge:60000});
 }
 
-function addHistory(label, query){
-  history=history.filter(e=>e.query.toLowerCase()!==query.toLowerCase());
-  history.unshift({label, query});
-  history=history.slice(0,6);
-  localStorage.setItem('wx_history',JSON.stringify(history));
+function addHistory(entry){
+  // entry is {label, query} or legacy string
+  const q=typeof entry==='object'?entry.query:entry;
+  searchHistory=searchHistory.filter(c=>{
+    const cq=typeof c==='object'?c.query:c;
+    return cq.toLowerCase()!==q.toLowerCase();
+  });
+  searchHistory.unshift(entry);
+  searchHistory=searchHistory.slice(0,6);
+  localStorage.setItem('wx_history',JSON.stringify(searchHistory));
   renderHistory();
 }
 
@@ -398,29 +402,19 @@ function showError(msg){
   document.getElementById('content').innerHTML='';
   const eb=document.getElementById('errorBox');
   eb.style.display='block';
-  eb.innerHTML=`<div class="error-msg">❌ ${msg}</div>`;
+  eb.innerHTML=`<div class="error-msg">❌ ${esc(msg)}</div>`;
 }
 
 function getDailyForecast(list){
   const days={};
-  // Use location's UTC offset so days group correctly regardless of browser timezone
-  const tz=list.length?0:0; // grouping by UTC date (forecast items are 3hr apart)
   list.forEach(item=>{
     const d=new Date(item.dt*1000);
+    // Use UTC date for grouping to stay consistent with getUTCDay() used in rendering
     const key=`${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
-    if(!days[key]) days[key]={icon:item.weather[0].icon,desc:item.weather[0].description,temps:[],id:item.weather[0].id,dt:item.dt,utcDay:d.getUTCDay()};
+    if(!days[key]) days[key]={icon:item.weather[0].icon,desc:item.weather[0].description,temps:[],id:item.weather[0].id,dt:item.dt};
     days[key].temps.push(item.main.temp);
   });
-  // Skip today (first key), return next 5 days
-  const vals=Object.values(days);
-  const todayKey=Object.keys(days)[0];
-  const nowUTC=new Date();
-  const todayUTCKey=`${nowUTC.getUTCFullYear()}-${nowUTC.getUTCMonth()}-${nowUTC.getUTCDate()}`;
-  // Find today's index to skip it
-  const allKeys=Object.keys(days);
-  const skipIdx=allKeys.indexOf(todayUTCKey);
-  const start=skipIdx>=0?skipIdx+1:1;
-  return Object.values(days).slice(start, start+5);
+  return Object.values(days).slice(1,6);
 }
 
 function renderWeather(wx,fcast,aqi){
@@ -432,22 +426,23 @@ function renderWeather(wx,fcast,aqi){
 
   const icon=WEATHER_ICONS[wx.weather[0].icon]||'🌡️';
   const tz=wx.timezone;
+  if(!fcast||!fcast.list){showError('Forecast data unavailable. Try again.');return}
   const daily=getDailyForecast(fcast.list);
 
-  const aqiPct=aqi?Math.max(3,Math.min(97,(aqi-1)/4*100)):null;
+  const aqiPct=aqi!=null?Math.min(98,Math.max(2,(aqi-1)/4*100)):null;
 
   const html=`
   <div class="glass main-card animate-in">
     <div class="location-row">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-      ${wx.sys.country}
+      ${esc(wx.sys?.country||'')}
     </div>
-    <div class="city-name">${wx.name||wx.sys.country||'Unknown'}</div>
+    <div class="city-name">${esc(wx.name)}</div>
     <div class="datetime">${formatDate(tz)}</div>
     <div class="weather-main">
       <div>
         <div class="temp-huge">${tempVal(wx.main.temp)}<span class="temp-unit-sup">°${unit}</span></div>
-        <div class="condition-text">${wx.weather[0].description.charAt(0).toUpperCase()+wx.weather[0].description.slice(1)}</div>
+        <div class="condition-text">${esc(wx.weather[0].description.charAt(0).toUpperCase()+wx.weather[0].description.slice(1))}</div>
         <div class="feels-like">Feels like ${tempStr(wx.main.feels_like)}</div>
       </div>
       <div class="weather-icon-big">${icon}</div>
@@ -461,7 +456,7 @@ function renderWeather(wx,fcast,aqi){
     <div class="glass-sm stat-item"><div class="stat-icon">🌡️</div><div><div class="stat-label">Pressure</div><div class="stat-val">${wx.main.pressure} hPa</div></div></div>
   </div>
 
-  <div class="glass glass-sm animate-in" style="margin-bottom:16px;animation-delay:.15s">
+  <div class="glass-sm animate-in" style="margin-bottom:16px;animation-delay:.15s">
     <div class="sun-row">
       <div class="sun-item"><div class="sun-icon">🌅</div><div class="sun-label">Sunrise</div><div class="sun-time">${unixToTime(wx.sys.sunrise,tz)}</div></div>
       <div style="width:1px;height:48px;background:var(--glass-border)"></div>
@@ -482,9 +477,11 @@ function renderWeather(wx,fcast,aqi){
 
   <div class="glass animate-in" style="animation-delay:.2s">
     <div class="forecast-title">5-Day Forecast</div>
+    ${daily.length===0?'<div style="font-size:13px;color:var(--text-muted);text-align:center;padding:8px 0">Forecast unavailable</div>':''}
     <div class="forecast-grid">
       ${daily.map(d=>{
-        const dayName=DAYS[d.utcDay];
+        const date=new Date(d.dt*1000);
+        const dayName=DAYS[date.getUTCDay()];
         const max=tempVal(Math.max(...d.temps));
         const min=tempVal(Math.min(...d.temps));
         const fcIcon=WEATHER_ICONS[d.icon]||'🌡️';
